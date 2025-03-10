@@ -8,4 +8,3 @@ class Requete(Enum):
     SPE4 = 4
     SPE5 = 5
     SPE6 = 6
-    # ...
