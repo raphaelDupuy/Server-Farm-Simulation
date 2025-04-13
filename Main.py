@@ -4,8 +4,8 @@ from Serveur import Serveur
 from Echeancier import Echeancier, Evenement as Ev
 
 param_lambda = 40/20
-nb_groupes = 6
-temps_max = 1000
+nb_groupes = 3
+temps_max = 10000
 echeancier = Echeancier()
 
 def initialise_ferme(nb_groupes) -> Routeur:

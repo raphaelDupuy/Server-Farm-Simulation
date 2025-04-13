@@ -7,7 +7,6 @@ class Evenement(Enum):
     RAR = 1 # requête à router
     FT = 2 # fin traitement
 
-
 class Echeancier:
     def __init__(self):
         self.echeancier = []
@@ -31,4 +30,3 @@ class Echeancier:
     
     def est_vide(self):
         return len(self.echeancier) == 0
-

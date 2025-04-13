@@ -1,4 +1,3 @@
-from Requete import Requete
 from Echeancier import Echeancier, Evenement as Ev
 from random import expovariate
 

@@ -1,4 +1,3 @@
-from Requete import Requete
 from Routeur import Routeur
 from Echeancier import Echeancier, Evenement as Ev
 from random import expovariate
