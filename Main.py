@@ -4,9 +4,10 @@ from Serveur import Serveur
 from Echeancier import Echeancier, Evenement as Ev
 
 param_lambda = 40/20
-nb_groupes = 3
+nb_groupes = 1
 temps_max = 10000
 echeancier = Echeancier()
+historique = []
 
 def initialise_ferme(nb_groupes) -> Routeur:
     rout = Routeur(nb_groupes, echeancier)
@@ -33,7 +34,6 @@ def initialise_ferme(nb_groupes) -> Routeur:
     rout.add_groupes(groupes)
 
     return rout
-
 
 def simulation(duree):
     client = Client(rout, param_lambda, echeancier, nb_groupes)

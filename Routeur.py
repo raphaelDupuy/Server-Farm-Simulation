@@ -47,7 +47,12 @@ class Routeur():
         self.nb_total += 1
 
         if self.nb_attente < 100:
-            temps_traitement = self.echeancier.temps_actuel + expovariate(self.temps_traitement)
+
+            add = 0
+            if self.nb_groupes - 1:
+                add = expovariate(self.temps_traitement)
+
+            temps_traitement = self.echeancier.temps_actuel + add
 
             self.echeancier.ajouter_evenement(temps_traitement, Ev.RAR, (self, requete))
             self.nb_attente += 1
