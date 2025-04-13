@@ -1,13 +1,15 @@
 from Client import Client
-from Requete import Requete
 from Routeur import Routeur
 from Serveur import Serveur
 from Echeancier import Echeancier, Evenement as Ev
 
-param_lambda = 1/2
+param_lambda = 40/20
+nb_groupes = 6
+temps_max = 1000
 echeancier = Echeancier()
 
 def initialise_ferme(nb_groupes) -> Routeur:
+    rout = Routeur(nb_groupes, echeancier)
     groupes = []
     serv_par_grp = 12//nb_groupes
     for i in range(nb_groupes):
@@ -24,28 +26,30 @@ def initialise_ferme(nb_groupes) -> Routeur:
                 lambda_serv = 14/20
 
         for _ in range (serv_par_grp):
-            spe.append(Serveur(echeancier , lambda_serv, i + 1))
+            spe.append(Serveur(echeancier , lambda_serv, rout, i))
 
         groupes.append(spe)
 
-    return Routeur(nb_groupes, groupes, echeancier)
+    rout.add_groupes(groupes)
+
+    return rout
 
 
 def simulation(duree):
-    rout = initialise_ferme(6)
-    client = Client(rout, param_lambda, echeancier)
+    client = Client(rout, param_lambda, echeancier, nb_groupes)
     while echeancier.temps_actuel < duree: 
-        print(echeancier.echeancier)
         type_evenement, details = echeancier.prochain_evenement()
-
         match type_evenement:
             case Ev.NR:
+                print(f"Evenement : Nouvelle requête")
                 client.envoie_requete()
-                print("Evenement : Nouvelle requête")
             case Ev.RAR:
+                print(f"Evenement : Requête à router - {details[1]}")
                 rout.route_requete(details[1])
-                print("Evenement : Requête à traîter")
             case Ev.FT:
-                print("Evenement : Fin de traîtement")
+                print(f"Evenement : Fin de traîtement - {details[1]}")
+                details[0].fin_traitement()
 
-simulation(100)
+rout = initialise_ferme(nb_groupes)
+simulation(temps_max)
+print(f"Fin de la simulation:\n - Requêtes traitées: {rout.nb_total}\n - Requêtes perdues: {rout.perte}")
