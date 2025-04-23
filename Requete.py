@@ -7,6 +7,12 @@ class Requete:
         Requete.nb_instances += 1
         self.id = Requete.nb_instances
         self.spe = Requetes(spe)
+
+    def get_id(self):
+        return self.id
+    
+    def get_value(self):
+        return self.spe.value
 class Requetes(Enum):
         
     SPE0 = 0

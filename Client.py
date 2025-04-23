@@ -1,4 +1,4 @@
-from Requete import Requetes
+from Requete import Requetes, Requete
 from Echeancier import Echeancier, Evenement as Ev
 from Routeur import Routeur
 import random
@@ -20,7 +20,7 @@ class Client():
             self.echeancier.ajouter_evenement(temps_prochaine_requete, Ev.NR, self)
     
     def envoie_requete(self):
-        requete = Requetes(random.randint(0, self.nb_groupes - 1))
+        requete = Requete(random.randint(0, self.nb_groupes - 1))
         self.routeur.ajoute_requete(requete)
         self.requetes_envoyees += 1
         self.planifier_prochaine_requete()

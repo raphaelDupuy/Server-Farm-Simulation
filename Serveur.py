@@ -23,10 +23,11 @@ class Serveur:
 
     def traite(self, requete):
         if not self.occupe:
-            if (requete.value == self.spe):
+            if (requete.get_value() == self.spe):
                 self.occupe = True
                 temps_traitement = self.echeancier.temps_actuel + expovariate(self.lambda_serv)
                 self.echeancier.ajouter_evenement(temps_traitement, Ev.FT, (self, requete))
+                self.echeancier.ajouter_historique(temps_traitement, requete.get_id(), 1)
             else:
                 MemoryError(f"Mauvaise spécialisation pour se serveur: {requete.value} != {self.spe}")
 

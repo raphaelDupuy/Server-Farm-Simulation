@@ -1,4 +1,5 @@
 from Echeancier import Echeancier, Evenement as Ev
+from Requete import Requete
 from random import expovariate
 
 class Routeur():
@@ -42,7 +43,7 @@ class Routeur():
         return res_str
     
 
-    def ajoute_requete(self, requete):
+    def ajoute_requete(self, requete : Requete):
 
         self.nb_total += 1
 
@@ -52,8 +53,11 @@ class Routeur():
             if self.nb_groupes - 1:
                 add = expovariate(self.temps_traitement)
 
-            temps_traitement = self.echeancier.temps_actuel + add
+            temps_actuel = self.echeancier.temps_actuel
 
+            self.echeancier.ajouter_historique(temps_actuel, requete.get_id(), 0)
+
+            temps_traitement = temps_actuel + add
             self.echeancier.ajouter_evenement(temps_traitement, Ev.RAR, (self, requete))
             self.nb_attente += 1
             print(f"---- En attente : {self.nb_attente}")
@@ -64,7 +68,7 @@ class Routeur():
 
     def route_requete(self, requete):
         if self.bloque == None:
-            spe = requete.value
+            spe = requete.get_value()
             trouve = False
             print(f"routage requete {spe}")
             for serveur in self.groupes[spe]:

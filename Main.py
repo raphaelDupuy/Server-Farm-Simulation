@@ -5,9 +5,8 @@ from Echeancier import Echeancier, Evenement as Ev
 
 param_lambda = 40/20
 nb_groupes = 1
-temps_max = 10000
+temps_max = 1000
 echeancier = Echeancier()
-historique = []
 
 def initialise_ferme(nb_groupes) -> Routeur:
     rout = Routeur(nb_groupes, echeancier)
@@ -50,6 +49,16 @@ def simulation(duree):
                 print(f"Evenement : Fin de traîtement - {details[1]}")
                 details[0].fin_traitement()
 
+def calcule_delta(data):
+    delta = dict()
+    for temps, id, event in data:
+        if not event:
+            delta[id] = - temps
+        else:
+            delta[id] += temps
+    return delta
+
 rout = initialise_ferme(nb_groupes)
 simulation(temps_max)
 print(f"Fin de la simulation:\n - Requêtes traitées: {rout.nb_total}\n - Requêtes perdues: {rout.perte}")
+print(calcule_delta(echeancier.historique))
