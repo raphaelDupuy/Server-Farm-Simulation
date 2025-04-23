@@ -4,7 +4,7 @@ from Serveur import Serveur
 from Echeancier import Echeancier, Evenement as Ev
 
 param_lambda = 40/20
-nb_groupes = 1
+nb_groupes = 6
 temps_max = 1000
 echeancier = Echeancier()
 
@@ -58,7 +58,18 @@ def calcule_delta(data):
             delta[id] += temps
     return delta
 
+def calcule_moyenne(data):
+    avg = 0
+    lenght = 0
+    for value in data.values():
+        if value > 0:
+            lenght += 1
+            avg += value
+
+    return (avg / lenght)
+
+
 rout = initialise_ferme(nb_groupes)
 simulation(temps_max)
 print(f"Fin de la simulation:\n - Requêtes traitées: {rout.nb_total}\n - Requêtes perdues: {rout.perte}")
-print(calcule_delta(echeancier.historique))
+print(calcule_moyenne(calcule_delta(echeancier.historique)))
