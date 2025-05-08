@@ -101,34 +101,57 @@ def calcule_moyenne(data):
 
     return (avg / lenght)
 
-couleurs = ['blue', 'green', 'red', 'orange']
-lambdas = [i/10 for i in range(1, 50)]
-temps_max = 10000
-for i, nb_groupes in enumerate([1, 2, 3, 6]):
-    moyennes = []
-    ic_95 = []
-    for lb in lambdas:
-        print(lb)
-        rout, echeancier = simulation(temps_max, lb, nb_groupes)
-        print(f"Fin de la simulation:\n - Requêtes traitées: {rout.nb_total}\n - Requêtes perdues: {rout.perte}")
-        deltas = calcule_delta(echeancier.historique) # potentiellement changer calcule_delta pour retourner une liste
-        temps_reponses = list(deltas.values())
-        n = len(temps_reponses)
+if __name__ == "__main__":
 
-        if n > 1:
-            moyenne = np.mean(temps_reponses)
-            ecart_type = np.std(temps_reponses, ddof=1)
-            intervalle = 1.96 * (ecart_type / np.sqrt(n))
+    couleurs = ['blue', 'green', 'red', 'orange']
+    lambdas = [i/10 for i in range(1, 70)]
+    temps_max = 10000
+    groupes_list = [1, 2, 3, 6] 
+    #for i, nb_groupes in enumerate([1, 2, 3, 6]):
+    #    moyennes = []
+    #    ic_95 = []
+    #    for lb in lambdas:
+    #        print(lb)
+    #        rout, echeancier = simulation(temps_max, lb, nb_groupes)
+    #        print(f"Fin de la simulation:\n - Requêtes traitées: {rout.nb_total}\n - Requêtes perdues: {rout.perte}")
+    #        deltas = calcule_delta(echeancier.historique) # potentiellement changer calcule_delta pour retourner une liste
+    #        temps_reponses = list(deltas.values())
+    #        n = len(temps_reponses)
+    #
+    #        if n > 1:
+    #            moyenne = np.mean(temps_reponses)
+    #            ecart_type = np.std(temps_reponses, ddof=1)
+    #            intervalle = 1.96 * (ecart_type / np.sqrt(n))
+    #
+    #        moyennes.append(moyenne)
+    #        ic_95.append(intervalle)
+    #
+    #    plt.errorbar(lambdas, moyennes, yerr=ic_95, fmt='-o', color=couleurs[i], label=f"{nb_groupes} groupes")
+    #
+    #
+    #plt.xlabel("λ (taux d’arrivée des requêtes)")
+    #plt.ylabel("Temps de réponse moyen (s)")
+    #plt.title("Évolution du temps de réponse moyen en fonction de λ")
+    #plt.grid(True)
+    #plt.legend(title="Nb Groupes")
+    #plt.show()
 
-        moyennes.append(moyenne)
-        ic_95.append(intervalle)
+    plt.figure()
+    for i, C in enumerate(groupes_list):
+        pertes_pct = []
+        for lb in lambdas:
+            print(lb)
+            rout, ech = simulation(temps_max, lb, C)
+            print(f"Fin de la simulation:\n - Requêtes traitées: {rout.nb_total}\n - Requêtes perdues: {rout.perte}")
+            if rout.nb_total > 0:
+                pertes_pct.append(100 * rout.perte / rout.nb_total)
+            else:
+                pertes_pct.append(0)
+        plt.plot(lambdas, pertes_pct, '-', color=couleurs[i], label=f"C={C}")
 
-    plt.errorbar(lambdas, moyennes, yerr=ic_95, fmt='-o', color=couleurs[i], label=f"{nb_groupes} groupes")
-
-
-plt.xlabel("λ (taux d’arrivée des requêtes)")
-plt.ylabel("Temps de réponse moyen (s)")
-plt.title("Évolution du temps de réponse moyen en fonction de λ")
-plt.grid(True)
-plt.legend(title="Nb Groupes")
-plt.show()
+    plt.xlabel("λ (taux d’arrivée des requêtes)")
+    plt.ylabel("Pourcentage de pertes (%)")
+    plt.title("Taux de perte des requêtes en fonction de λ et C")
+    plt.grid(True)
+    plt.legend(title="Nombre de groupes (C)")
+    plt.show()
