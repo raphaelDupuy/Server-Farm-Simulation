@@ -1,14 +1,12 @@
 from Client import Client
 from Routeur import Routeur
 from Serveur import Serveur
-from Echeancier import Echeancier, Evenement as Ev
+from Echeancier import Echeancier, Ev
+import matplotlib.pyplot as plt
+import numpy as np
 
-param_lambda = 40/20
-nb_groupes = 6
-temps_max = 1000
-echeancier = Echeancier()
 
-def initialise_ferme(nb_groupes) -> Routeur:
+def initialise_ferme(nb_groupes, echeancier) -> Routeur:
     rout = Routeur(nb_groupes, echeancier)
     groupes = []
     serv_par_grp = 12//nb_groupes
@@ -34,20 +32,53 @@ def initialise_ferme(nb_groupes) -> Routeur:
 
     return rout
 
-def simulation(duree):
-    client = Client(rout, param_lambda, echeancier, nb_groupes)
+def simulation(duree, param_lambda, nb_groupes):
+    echeancier = Echeancier()
+    rout = initialise_ferme(nb_groupes, echeancier)
+    client = Client(rout, param_lambda, echeancier)
     while echeancier.temps_actuel < duree: 
         type_evenement, details = echeancier.prochain_evenement()
         match type_evenement:
             case Ev.NR:
-                print(f"Evenement : Nouvelle requête")
+                # print(f"Evenement : Nouvelle requête")
                 client.envoie_requete()
             case Ev.RAR:
-                print(f"Evenement : Requête à router - {details[1]}")
+                #print(f"Evenement : Requête à router - {details[1]}")
                 rout.route_requete(details[1])
             case Ev.FT:
-                print(f"Evenement : Fin de traîtement - {details[1]}")
+                #print(f"Evenement : Fin de traîtement - {details[1]}")
                 details[0].fin_traitement()
+
+    return rout, echeancier
+
+def simulation(duree, lambda_client, nb_groupes):
+    ech = Echeancier()
+    rout = Routeur(nb_groupes, ech)
+
+    # initialisation des groupes de serveurs
+    groupes = []
+    serv_par_grp = 12 // nb_groupes
+    lambda_map = {1:4/20, 2:7/20, 3:10/20, 6:14/20}
+    lambda_serv = lambda_map[nb_groupes]
+    for spe in range(nb_groupes):
+        grp = [Serveur(ech, lambda_serv, rout, spe) for _ in range(serv_par_grp)]
+        groupes.append(grp)
+    rout.add_groupes(groupes)
+
+    # création du client
+    client = Client(rout, lambda_client, ech)
+
+    while ech.temps_actuel < duree and not ech.est_vide():
+        ev, details = ech.prochain_evenement()
+        if ev == Ev.NR:
+            client.envoie_requete()
+        elif ev == Ev.RAR:
+            rout.route_requete(details)
+        elif ev == Ev.FT:
+            details[0].fin_traitement()
+
+    return rout, ech
+
 
 def calcule_delta(data):
     delta = dict()
@@ -56,6 +87,8 @@ def calcule_delta(data):
             delta[id] = - temps
         else:
             delta[id] += temps
+
+    delta = {id: dt for id, dt in delta.items() if dt >= 0}
     return delta
 
 def calcule_moyenne(data):
@@ -68,8 +101,34 @@ def calcule_moyenne(data):
 
     return (avg / lenght)
 
+couleurs = ['blue', 'green', 'red', 'orange']
+lambdas = [i/10 for i in range(1, 50)]
+temps_max = 10000
+for i, nb_groupes in enumerate([1, 2, 3, 6]):
+    moyennes = []
+    ic_95 = []
+    for lb in lambdas:
+        print(lb)
+        rout, echeancier = simulation(temps_max, lb, nb_groupes)
+        print(f"Fin de la simulation:\n - Requêtes traitées: {rout.nb_total}\n - Requêtes perdues: {rout.perte}")
+        deltas = calcule_delta(echeancier.historique) # potentiellement changer calcule_delta pour retourner une liste
+        temps_reponses = list(deltas.values())
+        n = len(temps_reponses)
 
-rout = initialise_ferme(nb_groupes)
-simulation(temps_max)
-print(f"Fin de la simulation:\n - Requêtes traitées: {rout.nb_total}\n - Requêtes perdues: {rout.perte}")
-print(calcule_moyenne(calcule_delta(echeancier.historique)))
+        if n > 1:
+            moyenne = np.mean(temps_reponses)
+            ecart_type = np.std(temps_reponses, ddof=1)
+            intervalle = 1.96 * (ecart_type / np.sqrt(n))
+
+        moyennes.append(moyenne)
+        ic_95.append(intervalle)
+
+    plt.errorbar(lambdas, moyennes, yerr=ic_95, fmt='-o', color=couleurs[i], label=f"{nb_groupes} groupes")
+
+
+plt.xlabel("λ (taux d’arrivée des requêtes)")
+plt.ylabel("Temps de réponse moyen (s)")
+plt.title("Évolution du temps de réponse moyen en fonction de λ")
+plt.grid(True)
+plt.legend(title="Nb Groupes")
+plt.show()

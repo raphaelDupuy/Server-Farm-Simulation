@@ -1,26 +1,24 @@
-from Requete import Requetes, Requete
-from Echeancier import Echeancier, Evenement as Ev
+from Echeancier import Echeancier, Ev
 from Routeur import Routeur
 import random
 
-class Client():
-
-    def __init__(self, routeur : Routeur, lambda_client, echeancier : Echeancier, nb_groupes):
+class Client:
+    def __init__(self, routeur: Routeur, lambda_client: float, echeancier: Echeancier):
         self.lambda_client = lambda_client
         self.routeur = routeur
         self.echeancier = echeancier
         self.on = True
         self.requetes_envoyees = 0
-        self.nb_groupes = nb_groupes
         self.planifier_prochaine_requete()
-    
+
     def planifier_prochaine_requete(self):
         if self.on:
-            temps_prochaine_requete = self.echeancier.temps_actuel + random.expovariate(self.lambda_client)
-            self.echeancier.ajouter_evenement(temps_prochaine_requete, Ev.NR, self)
-    
+            t_next = self.echeancier.temps_actuel + random.expovariate(self.lambda_client)
+            self.echeancier.ajouter_evenement(t_next, Ev.NR, None)
+
     def envoie_requete(self):
-        requete = Requete(random.randint(0, self.nb_groupes - 1))
-        self.routeur.ajoute_requete(requete)
+        from Requete import Requete as Rq, Requetes
+        rq = Rq(random.randint(0, self.routeur.nb_groupes-1))
+        self.routeur.ajoute_requete(rq)
         self.requetes_envoyees += 1
         self.planifier_prochaine_requete()

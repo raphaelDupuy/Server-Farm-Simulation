@@ -1,86 +1,58 @@
-from Echeancier import Echeancier, Evenement as Ev
-from Requete import Requete
-from random import expovariate
+import random
+from Echeancier import Echeancier, Ev
 
-class Routeur():
-
-    def __init__(self, nb_groupes, echeancier : Echeancier):
-
-        if not nb_groupes in {1, 2, 3, 6}:
+default_lambda_serv = 14/20
+class Routeur:
+    def __init__(self, nb_groupes: int, echeancier: Echeancier):
+        if nb_groupes not in {1,2,3,6}:
             raise ValueError("Nombre de groupes incorrect")
-        else:
-            self.nb_groupes = nb_groupes
-            self.temps_traitement = (nb_groupes - 1)/nb_groupes
- 
+        self.nb_groupes = nb_groupes
         self.echeancier = echeancier
         self.nb_attente = 0
         self.perte = 0
         self.nb_total = 0
-        self.bloque = None
+        self.queue = []  # file FIFO pour requêtes en attente
+        self.groupes = {}
+        # délai de routage selon nombre de groupes
+        self.temps_routage = {
+            1: 0,
+            2: 4/20,
+            3: 7/20,
+            6: 10/20
+        }[nb_groupes]
 
     def add_groupes(self, groupes):
-        self.groupes = groupes
+        # groupes: liste de listes, index correspond à spe
+        self.groupes = {i: grp for i, grp in enumerate(groupes)}
 
-    def notify(self, spe):
-        if self.bloque:
-            print(self.bloque)
-            if self.bloque[0] == spe:
-                requete = self.bloque[1]
-                print("débloqué")
-                self.bloque = None
-                self.route_requete(requete)
-
-    def __str__(self):
-        res_str = "===========:Routeur:===========\n"
-        cnt = 1
-        for grp in self.groupes:
-            res_str += f"------------Groupe {cnt}-----------\n"
-            cnt += 1
-            for serv in grp:
-                res_str += serv.__str__()
-        res_str += "===============================\n"
-
-        return res_str
-    
-
-    def ajoute_requete(self, requete : Requete):
-
+    def ajoute_requete(self, requete):
         self.nb_total += 1
-
+        t0 = self.echeancier.temps_actuel
+        self.echeancier.ajouter_historique(t0, requete.get_id(), 0)
         if self.nb_attente < 100:
-
-            add = 0
-            if self.nb_groupes - 1:
-                add = expovariate(self.temps_traitement)
-
-            temps_actuel = self.echeancier.temps_actuel
-
-            self.echeancier.ajouter_historique(temps_actuel, requete.get_id(), 0)
-
-            temps_traitement = temps_actuel + add
-            self.echeancier.ajouter_evenement(temps_traitement, Ev.RAR, (self, requete))
+            # programmation du routage
+            t_rar = t0 + random.expovariate(1/self.temps_routage) if self.temps_routage>0 else t0
+            self.echeancier.ajouter_evenement(t_rar, Ev.RAR, requete)
             self.nb_attente += 1
-            print(f"---- En attente : {self.nb_attente}")
-
         else:
             self.perte += 1
-            print(f"Requête perdue {requete}")
 
     def route_requete(self, requete):
-        if self.bloque == None:
-            spe = requete.get_value()
-            trouve = False
-            print(f"routage requete {spe}")
-            for serveur in self.groupes[spe]:
-                if (not serveur.occupe):
-                    serveur.traite(requete)
-                    self.nb_attente -= 1
-                    print(f"serveur trouvé pour la requête {spe}")
-                    trouve = True
-                    break
-            if not trouve:
-                print("bloqué")
-                print(self)
-                self.bloque = (spe, requete)
-        else:
-            print("Routeur en attente de libération")
+        spe = requete.get_value()
+        if spe not in self.groupes:
+            raise KeyError(f"Spécialisation {spe} non définie dans groupes")
+        # recherche d'un serveur libre
+        for serveur in self.groupes[spe]:
+            if not serveur.occupe:
+                serveur.traite(requete)
+                self.nb_attente -= 1
+                return
+        # mise en attente FIFO
+        self.queue.append(requete)
+
+    def notify(self, serveur_libere):
+        # un serveur vient de se libérer, on tente de traiter la tête de file (FIFO)
+        if self.queue:
+            req = self.queue.pop(0)
+            # réacheminement via route_requete pour respecter la spécialisation
+            self.route_requete(req)

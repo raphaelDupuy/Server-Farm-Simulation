@@ -1,39 +1,28 @@
 from Routeur import Routeur
-from Echeancier import Echeancier, Evenement as Ev
+from Echeancier import Echeancier, Ev
 from random import expovariate
 
+default_lambda_serv = 14/20
 class Serveur:
-
-    # status = 1 -> Serveur peut prendre une requête
-    # status = 0 -> Serveur occuppé
-    # spe = None -> serveur non spécialisé (Voir classe Requete sinon)
-    def __init__(self, echeancier : Echeancier, lambda_serv, routeur : Routeur, spe=None):
+    def __init__(self, echeancier: Echeancier, lambda_serv: float, routeur, spe=None):
         self.echeancier = echeancier
         self.lambda_serv = lambda_serv
         self.spe = spe
         self.occupe = False
         self.routeur = routeur
 
-    def __str__(self):
-        status = "Occupé" if self.occupe else "Libre" 
-        return f"Serveur -status: {status} | -spe: {self.get_spe()}\n"
-    
-    def get_spe(self):
-        return self.spe
-
     def traite(self, requete):
-        if not self.occupe:
-            if (requete.get_value() == self.spe):
-                self.occupe = True
-                temps_traitement = self.echeancier.temps_actuel + expovariate(self.lambda_serv)
-                self.echeancier.ajouter_evenement(temps_traitement, Ev.FT, (self, requete))
-                self.echeancier.ajouter_historique(temps_traitement, requete.get_id(), 1)
-            else:
-                MemoryError(f"Mauvaise spécialisation pour se serveur: {requete.value} != {self.spe}")
-
-        else:
-            MemoryError("Serveur occuppé")
+        if self.occupe:
+            raise RuntimeError("Serveur occupé")
+        if requete.get_value() != self.spe:
+            raise RuntimeError(f"Mauvaise spécialisation: {requete.get_value()} != {self.spe}")
+        self.occupe = True
+        # enregistrement fin de traitement
+        t_fin = self.echeancier.temps_actuel + expovariate(self.lambda_serv)
+        self.echeancier.ajouter_evenement(t_fin, Ev.FT, (self, requete))
+        self.echeancier.ajouter_historique(t_fin, requete.get_id(), 1)
 
     def fin_traitement(self):
-        self.routeur.notify(self.spe)
         self.occupe = False
+        # notifier routeur que ce serveur est libéré
+        self.routeur.notify(self)
