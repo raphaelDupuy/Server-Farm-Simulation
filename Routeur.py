@@ -51,8 +51,7 @@ class Routeur:
         self.queue.append(requete)
 
     def notify(self, serveur_libere):
-        # un serveur vient de se libérer, on tente de traiter la tête de file (FIFO)
+        # tente de traiter la tête de file FIFO
         if self.queue:
             req = self.queue.pop(0)
-            # réacheminement via route_requete pour respecter la spécialisation
             self.route_requete(req)

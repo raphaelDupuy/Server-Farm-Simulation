@@ -24,5 +24,5 @@ class Serveur:
 
     def fin_traitement(self):
         self.occupe = False
-        # notifier routeur que ce serveur est libéré
+        # notifier routeur liberation
         self.routeur.notify(self)

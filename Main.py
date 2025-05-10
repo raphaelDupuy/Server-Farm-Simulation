@@ -32,25 +32,6 @@ def initialise_ferme(nb_groupes, echeancier) -> Routeur:
 
     return rout
 
-def simulation(duree, param_lambda, nb_groupes):
-    echeancier = Echeancier()
-    rout = initialise_ferme(nb_groupes, echeancier)
-    client = Client(rout, param_lambda, echeancier)
-    while echeancier.temps_actuel < duree: 
-        type_evenement, details = echeancier.prochain_evenement()
-        match type_evenement:
-            case Ev.NR:
-                # print(f"Evenement : Nouvelle requête")
-                client.envoie_requete()
-            case Ev.RAR:
-                #print(f"Evenement : Requête à router - {details[1]}")
-                rout.route_requete(details[1])
-            case Ev.FT:
-                #print(f"Evenement : Fin de traîtement - {details[1]}")
-                details[0].fin_traitement()
-
-    return rout, echeancier
-
 def simulation(duree, lambda_client, nb_groupes):
     ech = Echeancier()
     rout = Routeur(nb_groupes, ech)
@@ -68,6 +49,7 @@ def simulation(duree, lambda_client, nb_groupes):
     # création du client
     client = Client(rout, lambda_client, ech)
 
+    # simulation
     while ech.temps_actuel < duree and not ech.est_vide():
         ev, details = ech.prochain_evenement()
         if ev == Ev.NR:
