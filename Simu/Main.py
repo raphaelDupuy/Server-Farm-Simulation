@@ -113,14 +113,14 @@ def plot_temps_reponse():
     plt.legend(title="Nb Groupes")
     plt.show()
 
-def plot_taux_perte():
+def plot_taux_perte(nb_sim=1):
     plt.figure()
     for i, C in enumerate(groupes_list):
         pertes_pct = []
         for lb in lambdas:
             print(lb)
             moy = []
-            for _ in range(2):
+            for _ in range(nb_sim):
                 rout, _ = simulation(temps_max, lb, C)
                 print(f"Fin de la simulation:\n - Requêtes traitées: {rout.nb_total}\n - Requêtes perdues: {rout.perte}")
                 moy.append(100 * rout.perte / rout.nb_total)
@@ -141,8 +141,8 @@ def plot_taux_perte():
 if __name__ == "__main__":
 
     couleurs = ['blue', 'green', 'red', 'orange']
-    lambdas = [i/10 for i in range(1, 70)]
-    temps_max = 10000
+    lambdas = [i for i in range(0, 7)]
+    temps_max = 20000
     groupes_list = [1, 2, 3, 6]
 
-    plot_taux_perte()
+    plot_taux_perte(3)

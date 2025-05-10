@@ -1,0 +1,4 @@
+C = 1: lambda de 1 à 3 pas de 1/50 (=0.02), durée: 10 000, moyenne sur 10 simulations par lambda
+C = 2: lambda de 3 à 5 pas de 1/50 (=0.02), durée: 10 000, moyenne sur 10 simulations par lambda
+C = 3: lambda de 4.5 à 5.5 pas de 1/50 (=0.02), durée 10 000, moyenne sur 10 simulations par lambda
+C = 4: lambda de 5 à 7 pas de A/50 (=0.02), durée 10 000, moyenne sur 20 simulations par lambda
