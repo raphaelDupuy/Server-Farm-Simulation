@@ -39,7 +39,7 @@ def simulation(duree, lambda_client, nb_groupes):
     # initialisation des groupes de serveurs
     groupes = []
     serv_par_grp = 12 // nb_groupes
-    lambda_map = {1:4/20, 2:7/20, 3:10/20, 6:14/20}
+    lambda_map = {1: 4/20, 2: 7/20, 3: 10/20, 6: 14/20}
     lambda_serv = lambda_map[nb_groupes]
     for spe in range(nb_groupes):
         grp = [Serveur(ech, lambda_serv, rout, spe) for _ in range(serv_par_grp)]
@@ -52,6 +52,14 @@ def simulation(duree, lambda_client, nb_groupes):
     # simulation
     while ech.temps_actuel < duree and not ech.est_vide():
         ev, details = ech.prochain_evenement()
+
+        # calcul pour l'aire sous L(t)
+        delta_t = ech.temps_actuel - rout.t_precedent
+        nb_L = rout.nb_attente + rout.nb_occupe
+        rout.aire_L += nb_L * delta_t
+        rout.t_precedent = ech.temps_actuel
+
+        # gestion des événements
         if ev == Ev.NR:
             client.envoie_requete()
         elif ev == Ev.RAR:
@@ -60,6 +68,7 @@ def simulation(duree, lambda_client, nb_groupes):
             details[0].fin_traitement()
 
     return rout, ech
+
 
 
 def calcule_delta(data):
@@ -83,35 +92,50 @@ def calcule_moyenne(data):
 
     return (avg / lenght)
 
-def plot_temps_reponse():
+def plot_temps_reponse(n_simulations=2):
     for i, nb_groupes in enumerate([1, 2, 3, 6]):
         moyennes = []
         ic_95 = []
-        for lb in lambdas:
-            print(lb)
-            rout, echeancier = simulation(temps_max, lb, nb_groupes)
-            print(f"Fin de la simulation:\n - Requêtes traitées: {rout.nb_total}\n - Requêtes perdues: {rout.perte}")
-            deltas = calcule_delta(echeancier.historique) # potentiellement changer calcule_delta pour retourner une liste
-            temps_reponses = list(deltas.values())
-            n = len(temps_reponses)
 
-            if n > 1:
+        for lb in lambdas:
+            print(f"λ = {lb}, Groupes = {nb_groupes}")
+            temps_reponses = []
+
+            for _ in range(n_simulations):
+                rout, ech = simulation(temps_max, lb, nb_groupes)
+
+                nb_traitees = rout.nb_total - rout.perte
+                duree = ech.temps_actuel
+
+                if duree > 0 and nb_traitees > 0:
+                    lambda_effectif = nb_traitees / duree  
+                    L_moyen = rout.aire_L / duree          
+
+                    D = L_moyen / lambda_effectif
+                    if not np.isnan(D) and not np.isinf(D):
+                        temps_reponses.append(D)
+
+            if temps_reponses:
                 moyenne = np.mean(temps_reponses)
                 ecart_type = np.std(temps_reponses, ddof=1)
-                intervalle = 1.96 * (ecart_type / np.sqrt(n))
+                intervalle = 1.96 * (ecart_type / np.sqrt(len(temps_reponses)))
+            else:
+                moyenne = 0
+                intervalle = 0
 
             moyennes.append(moyenne)
             ic_95.append(intervalle)
 
         plt.errorbar(lambdas, moyennes, yerr=ic_95, fmt='-', color=couleurs[i], label=f"{nb_groupes} groupes")
 
-
     plt.xlabel("λ (taux d’arrivée des requêtes)")
     plt.ylabel("Temps de réponse moyen (s)")
-    plt.title("Évolution du temps de réponse moyen en fonction de λ")
+    plt.title("Temps de réponse moyen (loi de Little, λ corrigé) en fonction de λ")
     plt.grid(True)
     plt.legend(title="Nb Groupes")
     plt.show()
+
+
 
 def plot_taux_perte():
     plt.figure()
@@ -120,9 +144,9 @@ def plot_taux_perte():
         for lb in lambdas:
             print(lb)
             moy = []
-            for _ in range(2):
+            for _ in range(1):
                 rout, _ = simulation(temps_max, lb, C)
-                print(f"Fin de la simulation:\n - Requêtes traitées: {rout.nb_total}\n - Requêtes perdues: {rout.perte}")
+                print(f"Fin de la simulation:\n - Requêtes traitées: {rout.nb_total - rout.perte}\n - Requêtes perdues: {rout.perte}")
                 moy.append(100 * rout.perte / rout.nb_total)
             moy = np.mean(moy)
             if moy > 0:
@@ -141,7 +165,7 @@ def plot_taux_perte():
 if __name__ == "__main__":
 
     couleurs = ['blue', 'green', 'red', 'orange']
-    lambdas = [i/10 for i in range(1, 70)]
+    lambdas = [i for i in range(1, 30)]
     temps_max = 10000
     groupes_list = [1, 2, 3, 6]
 
