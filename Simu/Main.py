@@ -92,7 +92,7 @@ def calcule_moyenne(data):
 
     return (avg / lenght)
 
-def plot_temps_reponse(n_simulations=2):
+def plot_temps_reponse(n_simulations=5):
     for i, nb_groupes in enumerate([1, 2, 3, 6]):
         moyennes = []
         ic_95 = []
@@ -104,16 +104,11 @@ def plot_temps_reponse(n_simulations=2):
             for _ in range(n_simulations):
                 rout, ech = simulation(temps_max, lb, nb_groupes)
 
-                nb_traitees = rout.nb_total - rout.perte
-                duree = ech.temps_actuel
-
-                if duree > 0 and nb_traitees > 0:
-                    lambda_effectif = nb_traitees / duree  
-                    L_moyen = rout.aire_L / duree          
-
-                    D = L_moyen / lambda_effectif
-                    if not np.isnan(D) and not np.isinf(D):
-                        temps_reponses.append(D)
+                if ech.temps_actuel > 0:
+                    L_moyen = rout.aire_L / ech.temps_actuel
+                    temps_reponse = L_moyen / lb  # On garde λ donné (non corrigé)
+                    if not np.isnan(temps_reponse) and not np.isinf(temps_reponse):
+                        temps_reponses.append(temps_reponse)
 
             if temps_reponses:
                 moyenne = np.mean(temps_reponses)
@@ -130,11 +125,10 @@ def plot_temps_reponse(n_simulations=2):
 
     plt.xlabel("λ (taux d’arrivée des requêtes)")
     plt.ylabel("Temps de réponse moyen (s)")
-    plt.title("Temps de réponse moyen (loi de Little, λ corrigé) en fonction de λ")
+    plt.title("Temps de réponse moyen (loi de Little) en fonction de λ")
     plt.grid(True)
     plt.legend(title="Nb Groupes")
     plt.show()
-
 
 
 def plot_taux_perte():
@@ -165,8 +159,8 @@ def plot_taux_perte():
 if __name__ == "__main__":
 
     couleurs = ['blue', 'green', 'red', 'orange']
-    lambdas = [i for i in range(1, 30)]
+    lambdas = [i for i in range(1, 8)]
     temps_max = 10000
     groupes_list = [1, 2, 3, 6]
 
-    plot_taux_perte()
+    plot_temps_reponse()
