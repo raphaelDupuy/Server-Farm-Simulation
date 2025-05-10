@@ -1,0 +1,4 @@
+C = 1: lambda > ~2.52 pour taux erreur > 5%
+C = 2: lambda > ~4 pour taux erreur > 5%
+C = 3: lambda > ~5.25 pour taux erreur > 5%
+C = 6: lambda > ~6 pour taux erreur > 5%
