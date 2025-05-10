@@ -162,11 +162,68 @@ def plot_taux_perte():
     plt.legend(title="Nombre de groupes (C)")
     plt.show()
 
+def trouver_optimal_C(n_simulations=5, alpha=1.0, beta=100.0):
+    resultats = []
+
+    for lb in lambdas:
+        scores_C = {}
+
+        for C in groupes_list:
+            temps_reponses = []
+            pertes = []
+
+            for _ in range(n_simulations):
+                rout, ech = simulation(temps_max, lb, C)
+
+                if ech.temps_actuel > 0 and rout.nb_total > 0:
+                    L = rout.aire_L / ech.temps_actuel
+                    lambda_eff = rout.nb_total / ech.temps_actuel
+                    D = L / lambda_eff if lambda_eff > 0 else 0
+                    perte = rout.perte / rout.nb_total
+
+                    temps_reponses.append(D)
+                    pertes.append(perte)
+
+            if temps_reponses and pertes:
+                D_mean = np.mean(temps_reponses)
+                P_mean = np.mean(pertes)
+                D_std = np.std(temps_reponses, ddof=1)
+                P_std = np.std(pertes, ddof=1)
+
+                score_mean = alpha * D_mean + beta * P_mean
+                score_ic = 1.96 * np.sqrt((alpha * D_std) ** 2 + (beta * P_std) ** 2) / np.sqrt(n_simulations)
+
+                scores_C[C] = (score_mean, score_ic)
+
+        meilleur_C = min(scores_C.items(), key=lambda x: x[1][0] + x[1][1])[0]
+        resultats.append((lb, meilleur_C, scores_C))
+
+    return resultats
+
+def plot_C_optimal_vs_lambda(n_simulations=5, alpha=1.0, beta=100.0):
+    resultats = trouver_optimal_C(n_simulations, alpha, beta)
+
+    lambdas_x = [lb for lb, _, _ in resultats]
+    C_optimal = [C for _, C, _ in resultats]
+
+    plt.figure(figsize=(10, 5))
+    plt.step(lambdas_x, C_optimal, where='post', color='blue', label="C optimal")
+    plt.scatter(lambdas_x, C_optimal, color='blue')
+    
+    plt.xlabel("λ (taux d’arrivée des requêtes)")
+    plt.ylabel("Nombre de groupes C optimal")
+    plt.title("Nombre de groupes C optimal en fonction de λ (avec IC 95%)")
+    plt.yticks([1, 2, 3, 6])
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
 if __name__ == "__main__":
 
     couleurs = ['blue', 'green', 'red', 'orange']
-    lambdas = [i for i in range(1, 30)]
-    temps_max = 10000
+    lambdas = [i for i in range(1, 7)]
+    temps_max = 1000
     groupes_list = [1, 2, 3, 6]
 
-    plot_taux_perte()
+    plot_C_optimal_vs_lambda(3, 1, 10)
