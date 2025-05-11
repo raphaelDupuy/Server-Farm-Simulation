@@ -2,6 +2,7 @@ from heapq import heappush, heappop
 import random
 import time
 import numpy as np
+import matplotlib.pyplot as plt
 
 class Echeancier:
     def __init__(self):
@@ -9,7 +10,7 @@ class Echeancier:
         self.temps_actuel = 0
         self.historique = []
         # Plus petit = plus prioritaire
-        self.priorites = {"FIN": 0, "ROUTAGE": 1, "A ROUTER": 2, "ARRIVEE": 3}
+        self.priorites = {"FIN": 0, "ROUTAGE": 1, "ARRIVEE": 2}
 
     def ajouter_evenement(self, temps, type_evt, details=None):
         # Le heap trie d'abord par temps, puis par priorité si temps égaux
@@ -55,7 +56,7 @@ def simulation(lambda_client, nb_groupes, duree_max):
         stop += 1
         temps, evt_type, details = ech.prochain_evenement()
         
-        print(f"Temps: {temps:.2f}, Événement: {evt_type}, Détails: {details}")
+        # print(f"Temps: {temps:.2f}, Événement: {evt_type}, Détails: {details}")
         match evt_type:
             case "ARRIVEE":
                 # Nouvelle requête
@@ -66,94 +67,70 @@ def simulation(lambda_client, nb_groupes, duree_max):
                     spe = random.randint(0, nb_groupes-1)  # Spécialisation aléatoire
                     file_routeur.append((spe, temps, details))  # (spécialisation, temps_arrivee, id_requete)
                     historique[temps] = {"entree": temps, "debut_service": None, "fin": None}
-                    if file_routeur:
+                    if en_routage == None:
                         # Si la file n'est pas vide, programme le routage
-                        ech.ajouter_evenement(temps, "A ROUTER", (spe, details))
+                        ech.ajouter_evenement(temps + temps_routage, "ROUTAGE", (spe, details))
+                        en_routage = (spe, details)
+
                 else:
-                    print("Requête perdue")
+                    # print("Requête perdue")
                     nb_pertes += 1
 
                 id_requete += 1
                 # Programme prochaine arrivée
                 ech.ajouter_evenement(temps + random.expovariate(lambda_client), "ARRIVEE", id_requete)
-                print(file_routeur)
+                # print(file_routeur)
 
-            case "A ROUTER":
-                print("A ROUTER")
-                if en_routage == None:
-                    ech.ajouter_evenement(temps + temps_routage, "ROUTAGE", details)
-                else:
-                    print("Déjà en routage")
-                    print(f"en routage: {en_routage}")
-                    for evt in ech.events:
-                        if evt[2] == "FIN":
-                           ech.ajouter_evenement(evt[0], "A ROUTER", details)
             case "ROUTAGE":
-                print("ROUTAGE")
-                if en_routage != None:
-                    print("Routeur occupé, requête en attente")
-                    time.sleep(2)
-                    pass
-                else:
-                    if file_routeur:
-                        spe, t_arr, id = file_routeur[0]
-                        print(f"details: {id}")
-                        if details[1] != id:
-                            print(f"Erreur de routage: {details[1]} != {id}")
-                            time.sleep(2)
-                        # Cherche un serveur libre dans le bon groupe
-                        debut_groupe = spe * (12//nb_groupes)
-                        fin_groupe = debut_groupe + (12//nb_groupes)
-                        serveur_trouve = False
-                        for i in range(debut_groupe, fin_groupe):
-                            if not serveurs_occupe[i]:
-                                print(f"Serveur {i} libre, traitement de la requête")
-                                # Serveur trouvé
-                                serveurs_occupe[i] = True
-                                file_routeur.pop(0)
-                                t_fin = temps + random.expovariate(lambda_serv)
-                                ech.ajouter_evenement(t_fin, "FIN", (i, details))
-                                historique[t_arr]["debut_service"] = temps
-                                # Programme routage suivant si file non vide
-                                en_routage = None
-                                serveur_trouve = True
-                                break
+                # print(f"ROUTAGE {en_routage}")
+                
+                if file_routeur:
+                    spe, t_arr, id = file_routeur[0]
+                    # print(f"details: {id}")
+                    if details[1] != id:
+                        # print(f"Erreur de routage: {details[1]} != {id}")
+                        time.sleep(2)
+                    # Cherche un serveur libre dans le bon groupe
+                    debut_groupe = spe * (12//nb_groupes)
+                    fin_groupe = debut_groupe + (12//nb_groupes)
+                    serveur_trouve = False
+                    for i in range(debut_groupe, fin_groupe):
+                        if not serveurs_occupe[i]:
+                            # print(f"Serveur {i} libre, traitement de la requête")
+                            # Serveur trouvé
+                            serveurs_occupe[i] = True
+                            file_routeur.pop(0)
+                            t_fin = temps + random.expovariate(lambda_serv)
+                            ech.ajouter_evenement(t_fin, "FIN", (i, details))
+                            historique[t_arr]["debut_service"] = temps
+                            # Programme routage suivant si file non vide
+                            if len(file_routeur) > 0:
+                                next = file_routeur[0]
+                                ech.ajouter_evenement(temps + temps_routage, "ROUTAGE", (next[0], next[2]))
                             else:
-                                pass
-                                # print(f"Serveur {i} occupé")
-                        # Dans le cas "ROUTAGE"
-                        if not serveur_trouve:  # Si aucun serveur libre trouvé
-                            print("Aucun serveur libre, requête en attente")
-                            en_routage = details
+                                # Si la file est vide, on remet en attente le routage
+                                en_routage = None
+                            serveur_trouve = True
+                            break
+                        
+                    if not serveur_trouve:  # Si aucun serveur libre trouvé
+                        # print("Aucun serveur libre, requête en attente")
+                        for evt in ech.events:
+                            if evt[2] == "FIN":
+                                ech.ajouter_evenement(evt[0], "ROUTAGE", details)
+                                break
+                                
 
             case "FIN":
-                print("details", details)
+                # print("details", details)
                 serveur_id = details[0]
-                spe = details[1][0]
-                if en_routage != None:
-                    if en_routage[0] == spe:
-                        print(f"en routage {en_routage}")
-                        ech.ajouter_evenement(temps + random.expovariate(lambda_serv), "FIN", (serveur_id, en_routage))
-                        # Serveur trouvé
-                        serveurs_occupe[serveur_id] = True
-                        file_routeur.pop(0)
-
-                        en_routage = None
-                        next = file_routeur[0] if len(file_routeur) > 1 else None
-                        print(file_routeur)
-                        print(f"Prochaine requête à router: {next}")
-                        if next != None:
-                            ech.ajouter_evenement(temps, "ROUTAGE", (next[0], next[2]))
-                            for evt in ech.events:
-                                if evt[2] == "A ROUTER" and evt[3][1] == next[1]:
-                                    heappop(ech.events, evt)
 
                 # Libère le serveur
                 serveurs_occupe[serveur_id] = False
                 historique[t_arr]["fin"] = temps
                 # Si file non vide, programme routage
-        print(ech.events)
-        print("")
+        # print(ech.events)
+        # print("")
     # Calcul statistiques
     temps_reponse = []
     for infos in historique.values():
@@ -165,7 +142,43 @@ def simulation(lambda_client, nb_groupes, duree_max):
     return temps_moyen, taux_perte
 
 if __name__ == "__main__":
-    # Test avec différentes configurations
-    for nb_groupes in [1]:
-        tr, tp = simulation(1.5, nb_groupes, 1000)
-        print(f"Groupes: {nb_groupes}, Temps moyen: {tr:.2f}, Taux perte: {tp:.2%}")
+    # Définition des paramètres
+    lambdas = np.arange(0.1, 7.1, 0.2)  # Valeurs de lambda à tester
+    nb_groupes_list = [1, 2, 3, 6]      # Valeurs de C
+    couleurs = ['blue', 'green', 'red', 'orange']  # Couleurs pour chaque C
+    
+    # Création de deux subplots
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12))
+    
+    # Pour chaque valeur de C
+    for i, C in enumerate(nb_groupes_list):
+        temps_reponse = []
+        taux_pertes = []
+        # Pour chaque valeur de lambda
+        for lb in lambdas:
+            tr, tp = simulation(lb, C, 1000)
+            temps_reponse.append(tr)
+            taux_pertes.append(tp)
+            print(f"C={C}, λ={lb:.1f}, TR={tr:.2f}, TP={tp:.2%}")
+        
+        # Tracer les courbes pour cette valeur de C
+        ax1.plot(lambdas, temps_reponse, '-', color=couleurs[i], label=f"C={C}")
+        ax2.plot(lambdas, taux_pertes, '-', color=couleurs[i], label=f"C={C}")
+    
+    # Paramètres du premier subplot (temps de réponse)
+    ax1.set_xlabel("λ (taux d'arrivée des requêtes)")
+    ax1.set_ylabel("Temps de réponse moyen (s)")
+    ax1.set_title("Évolution du temps de réponse moyen en fonction de λ")
+    ax1.grid(True)
+    ax1.legend()
+    
+    # Paramètres du second subplot (taux de perte)
+    ax2.set_xlabel("λ (taux d'arrivée des requêtes)")
+    ax2.set_ylabel("Taux de perte")
+    ax2.set_title("Évolution du taux de perte en fonction de λ")
+    ax2.grid(True)
+    ax2.legend()
+    
+    # Ajuster l'espacement entre les subplots
+    plt.tight_layout()
+    plt.show()
