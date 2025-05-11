@@ -1,5 +1,6 @@
 from heapq import heappush, heappop
 import random
+import time
 import numpy as np
 
 class Echeancier:
@@ -8,7 +9,7 @@ class Echeancier:
         self.temps_actuel = 0
         self.historique = []
         # Plus petit = plus prioritaire
-        self.priorites = {"FIN": 0, "ROUTAGE": 1, "ARRIVEE": 2}
+        self.priorites = {"FIN": 0, "ROUTAGE": 1, "A ROUTER": 2, "ARRIVEE": 3}
 
     def ajouter_evenement(self, temps, type_evt, details=None):
         # Le heap trie d'abord par temps, puis par priorité si temps égaux
@@ -44,14 +45,13 @@ def simulation(lambda_client, nb_groupes, duree_max):
     historique = {}   # Pour calculer les temps de réponse
     id_requete = 0
     stop = 0
-    en_routage = None  # Indique si le routeur est occupé
+    en_routage = None # Indique si le routeur est occupé
 
     # Programme l'arrivée de la première requête
     ech.ajouter_evenement(0, "ARRIVEE", id_requete)
 
     # Boucle principale
     while ech.temps_actuel < duree_max:
-        print(stop)
         stop += 1
         temps, evt_type, details = ech.prochain_evenement()
         
@@ -62,14 +62,13 @@ def simulation(lambda_client, nb_groupes, duree_max):
                 nb_total += 1
 
                 if len(file_routeur) < 100: # + nb de serveurs occupés
-                    print("Requête acceptée: taille de la file:", len(file_routeur))
+                    # print("Requête acceptée: taille de la file:", len(file_routeur))
                     spe = random.randint(0, nb_groupes-1)  # Spécialisation aléatoire
                     file_routeur.append((spe, temps, details))  # (spécialisation, temps_arrivee, id_requete)
                     historique[temps] = {"entree": temps, "debut_service": None, "fin": None}
                     if file_routeur:
                         # Si la file n'est pas vide, programme le routage
-                        t_rar = temps + temps_routage
-                        ech.ajouter_evenement(t_rar, "ROUTAGE", details)
+                        ech.ajouter_evenement(temps, "A ROUTER", (spe, details))
                 else:
                     print("Requête perdue")
                     nb_pertes += 1
@@ -77,17 +76,31 @@ def simulation(lambda_client, nb_groupes, duree_max):
                 id_requete += 1
                 # Programme prochaine arrivée
                 ech.ajouter_evenement(temps + random.expovariate(lambda_client), "ARRIVEE", id_requete)
+                print(file_routeur)
 
+            case "A ROUTER":
+                print("A ROUTER")
+                if en_routage == None:
+                    ech.ajouter_evenement(temps + temps_routage, "ROUTAGE", details)
+                else:
+                    print("Déjà en routage")
+                    print(f"en routage: {en_routage}")
+                    for evt in ech.events:
+                        if evt[2] == "FIN":
+                           ech.ajouter_evenement(evt[0], "A ROUTER", details)
             case "ROUTAGE":
-                if en_routage:
-                    # Si le routeur est occupé, on ne fait rien
+                print("ROUTAGE")
+                if en_routage != None:
                     print("Routeur occupé, requête en attente")
-                    en_routage = ()
+                    time.sleep(2)
+                    pass
                 else:
                     if file_routeur:
                         spe, t_arr, id = file_routeur[0]
-                        if details != id:
-                            print(f"Erreur de routage: {details} != {id}")
+                        print(f"details: {id}")
+                        if details[1] != id:
+                            print(f"Erreur de routage: {details[1]} != {id}")
+                            time.sleep(2)
                         # Cherche un serveur libre dans le bon groupe
                         debut_groupe = spe * (12//nb_groupes)
                         fin_groupe = debut_groupe + (12//nb_groupes)
@@ -99,28 +112,48 @@ def simulation(lambda_client, nb_groupes, duree_max):
                                 serveurs_occupe[i] = True
                                 file_routeur.pop(0)
                                 t_fin = temps + random.expovariate(lambda_serv)
-                                ech.ajouter_evenement(t_fin, "FIN", i)
+                                ech.ajouter_evenement(t_fin, "FIN", (i, details))
                                 historique[t_arr]["debut_service"] = temps
                                 # Programme routage suivant si file non vide
-                                en_routage = False
+                                en_routage = None
                                 serveur_trouve = True
                                 break
                             else:
-                                print(f"Serveur {i} occupé")
+                                pass
+                                # print(f"Serveur {i} occupé")
                         # Dans le cas "ROUTAGE"
                         if not serveur_trouve:  # Si aucun serveur libre trouvé
                             print("Aucun serveur libre, requête en attente")
-                            en_routage = True
-                            ech.ajouter_evenement(temps, "ROUTAGE", details)
+                            en_routage = details
 
             case "FIN":
+                print("details", details)
+                serveur_id = details[0]
+                spe = details[1][0]
+                if en_routage != None:
+                    if en_routage[0] == spe:
+                        print(f"en routage {en_routage}")
+                        ech.ajouter_evenement(temps + random.expovariate(lambda_serv), "FIN", (serveur_id, en_routage))
+                        # Serveur trouvé
+                        serveurs_occupe[serveur_id] = True
+                        file_routeur.pop(0)
+
+                        en_routage = None
+                        next = file_routeur[0] if len(file_routeur) > 1 else None
+                        print(file_routeur)
+                        print(f"Prochaine requête à router: {next}")
+                        if next != None:
+                            ech.ajouter_evenement(temps, "ROUTAGE", (next[0], next[2]))
+                            for evt in ech.events:
+                                if evt[2] == "A ROUTER" and evt[3][1] == next[1]:
+                                    heappop(ech.events, evt)
+
                 # Libère le serveur
-                en_routage = False
-                serveur_id = details
                 serveurs_occupe[serveur_id] = False
                 historique[t_arr]["fin"] = temps
                 # Si file non vide, programme routage
         print(ech.events)
+        print("")
     # Calcul statistiques
     temps_reponse = []
     for infos in historique.values():
@@ -134,5 +167,5 @@ def simulation(lambda_client, nb_groupes, duree_max):
 if __name__ == "__main__":
     # Test avec différentes configurations
     for nb_groupes in [1]:
-        tr, tp = simulation(5, nb_groupes, 300)
+        tr, tp = simulation(1.5, nb_groupes, 1000)
         print(f"Groupes: {nb_groupes}, Temps moyen: {tr:.2f}, Taux perte: {tp:.2%}")
