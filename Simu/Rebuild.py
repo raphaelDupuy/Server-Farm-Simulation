@@ -1,6 +1,5 @@
 from heapq import heappush, heappop
 import random
-import time
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -171,7 +170,7 @@ def plot_temps_reponse(lambdas, resultats):
 def plot_taux_perte(lambdas, taux_pertes):
     """Plot le taux de perte en pourcentage"""
     plt.figure(figsize=(10, 6))
-    couleurs = ['blue', 'green', 'red', 'orange']
+    couleurs = ['red', 'orange', 'red', 'orange']
     
     for i, C in enumerate(taux_pertes.keys()):
         # Convertir en pourcentage
@@ -188,7 +187,7 @@ def plot_taux_perte(lambdas, taux_pertes):
 def plot_temps_little(lambdas, resultats_little):
     """Plot le temps moyen calculé avec la loi de Little"""
     plt.figure(figsize=(10, 6))
-    couleurs = ['blue', 'green', 'red', 'orange']
+    couleurs = ['green', 'red', 'red', 'orange']
     
     for i, C in enumerate(resultats_little.keys()):
         temps_little = [np.mean(w) for w in resultats_little[C]]
@@ -206,8 +205,8 @@ def plot_temps_little(lambdas, resultats_little):
     plt.legend()
 
 if __name__ == "__main__": 
-    lambdas = np.arange(1.9, 2.2, 0.01)
-    nb_groupes_list = [2]
+    lambdas = np.arange(1.1, 1.15, 0.005)
+    nb_groupes_list = [2, 3]
     n_sims = 3  # Nombre de simulations par point
     
     resultats = {C: [] for C in nb_groupes_list}
@@ -223,7 +222,7 @@ if __name__ == "__main__":
             
             # Faire n_sims simulations pour cette valeur de lambda
             for sim in range(n_sims):
-                tr, tp, W_little = simulation(lb, C, 3000)
+                tr, tp, W_little = simulation(lb, C, 175000)
                 temps_reponses.append(tr)
                 temps_little.append(W_little)
                 taux_perte += tp/n_sims  # Moyenne du taux de perte
