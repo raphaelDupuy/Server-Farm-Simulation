@@ -13,13 +13,15 @@ Le projet a pour but de simuler une ferme de 12 serveurs avec un routage des req
 
 ### Gestion des événements (class Echeancier)
 
-- Maintient une liste ordonnée des événements
+- Maintient une liste ordonnée des événements d'abord par leur temps d'arrivé, puis par priorité 
 - Méthodes principales :
     - ajouter_evt() : Ajoute un nouvel événement
     - prochain_evt() : Récupère le prochain événement à traiter
-    - vider() : Réinitialise l'échéancier
 
 ### Simulation principale (simulation())
+
+En commençant par ajouter manuellement un premier événement ARRIVEE dans l'échéancier, on lance la boucle principale.
+Tant que le temps de la simulation ne dépasse pas le temps maximum défini, on va par la suite traiter chaque événement ajouté à l'échéancier à l'aide d'un "match" :
 
 - Types d'événements
     - ARRIVEE
@@ -27,6 +29,7 @@ Le projet a pour but de simuler une ferme de 12 serveurs avec un routage des req
         - Gère le rejet si file pleine
         - Planifie le routage si possible
         - Attribue aux requêtes une spécialisation selon la loi uniforme
+        - Ajoute une nouvelle requête dans l'échancier selon le taux d'arrivée
 
     - ROUTAGE
         - Temps de traitement constant : (C-1)/C
