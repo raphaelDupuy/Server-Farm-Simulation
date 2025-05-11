@@ -30,23 +30,28 @@ def simulation(lambda_client, nb_groupes, duree_max):
         nb_groupes: nombre de groupes de serveurs (1,2,3 ou 6)
         duree_max: durée de simulation
     Returns:
-        temps_moyen, taux_perte
+        temps_moyen, taux_perte, W_little
     """
-    # Paramètres de service
+    # Paramètres
     lambda_map = {1:4/20, 2:7/20, 3:10/20, 6:14/20}
     lambda_serv = lambda_map[nb_groupes]
     temps_routage = (nb_groupes - 1) / nb_groupes
 
-    # État du système
+    # Etat système
     ech = Echeancier()
     file_routeur = []
-    serveurs_occupe = [False] * (12//nb_groupes) * nb_groupes  # État serveurs
+    serveurs_occupe = [False] * (12//nb_groupes) * nb_groupes  # Etat serveurs
     nb_total = 0      # Nb total requetes
     nb_pertes = 0     # Nb requetes perdues
     historique = {}
     id_requete = 0
     stop = 0
-    en_routage = None # routeur occupé ou pas
+    en_routage = None # Routeur occupé ou pas
+
+    # Variables loi de Little
+    nb_requetes_cumul = 0
+    dernier_temps = 0
+    nb_requetes = 0        # Nb actuel de requetes dans le système
 
     # Première arrivée
     ech.ajouter_evenement(0, "ARRIVEE", id_requete)
@@ -54,6 +59,10 @@ def simulation(lambda_client, nb_groupes, duree_max):
     while ech.temps_actuel < duree_max:
         stop += 1
         temps, evt_type, details = ech.prochain_evenement()
+        
+        # Maj du nombre moyen de requêtes
+        nb_requetes_cumul += nb_requetes * (temps - dernier_temps)
+        dernier_temps = temps
         
         # print(f"Temps: {temps:.2f}, Événement: {evt_type}, Détails: {details}")
         match evt_type:
@@ -64,7 +73,7 @@ def simulation(lambda_client, nb_groupes, duree_max):
                 for serv in serveurs_occupe:
                     if serv:
                         nb_occupe += 1
-                if (len(file_routeur) + nb_occupe) < 100: # + nb de serveurs occupés
+                if (len(file_routeur) + nb_occupe) < 100:
                     spe = random.randint(0, nb_groupes-1)  # spe aléatoire
                     file_routeur.append((spe, temps, details))  # (spe, temps_arrivee, id_requete)
                     historique[temps] = {"entree": temps, "debut_service": None, "fin": None}
@@ -72,6 +81,7 @@ def simulation(lambda_client, nb_groupes, duree_max):
                         
                         ech.ajouter_evenement(temps + temps_routage, "ROUTAGE", (spe, details))
                         en_routage = (spe, details)
+                    nb_requetes += 1  # requete entre dans le système
 
                 else:
                     nb_pertes += 1
@@ -121,6 +131,7 @@ def simulation(lambda_client, nb_groupes, duree_max):
 
                 serveurs_occupe[serveur_id] = False
                 historique[t_arr]["fin"] = temps
+                nb_requetes -= 1  # requete sort du système
 
 
     temps_reponse = []
@@ -130,42 +141,95 @@ def simulation(lambda_client, nb_groupes, duree_max):
     temps_moyen = np.mean(temps_reponse) if temps_reponse else 0
     taux_perte = nb_pertes / nb_total if nb_total > 0 else 0
 
-    return temps_moyen, taux_perte
+    # Loi de Little
+    L = nb_requetes_cumul / duree_max 
+    lambda_effectif = (nb_total - nb_pertes) / duree_max
+    W_little = L / lambda_effectif if lambda_effectif > 0 else 0
 
-if __name__ == "__main__":
-    
-    lambdas = np.arange(0.1, 7.1, 0.2)  # Valeurs de lambda à tester
-    nb_groupes_list = [1, 2, 3, 6]      # Valeurs de C
+    return temps_moyen, taux_perte, W_little
+
+def plot_temps_reponse(lambdas, resultats):
+    """Plot le temps de réponse moyen avec IC à 95%"""
+    plt.figure(figsize=(10, 6))
     couleurs = ['blue', 'green', 'red', 'orange']
     
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12))
-    
-    for i, C in enumerate(nb_groupes_list):
-        temps_reponse = []
-        taux_pertes = []
+    for i, C in enumerate(resultats.keys()):
+        temps_moyen = [np.mean(tr) for tr in resultats[C]]
+
+        ic_95 = [1.96 * np.std(tr) / np.sqrt(len(tr)) if len(tr) > 1 else 0 
+                 for tr in resultats[C]]
         
+        plt.errorbar(lambdas, temps_moyen, yerr=ic_95, fmt='-', 
+                    color=couleurs[i], label=f"C={C}", capsize=5)
+    
+    plt.xlabel("λ (taux d'arrivée des requêtes)")
+    plt.ylabel("Temps de réponse moyen (s)")
+    plt.title("Évolution du temps de réponse moyen en fonction de λ")
+    plt.grid(True)
+    plt.legend()
+
+def plot_taux_perte(lambdas, taux_pertes):
+    """Plot le taux de perte"""
+    plt.figure(figsize=(10, 6))
+    couleurs = ['blue', 'green', 'red', 'orange']
+    
+    for i, C in enumerate(taux_pertes.keys()):
+        plt.plot(lambdas, taux_pertes[C], '-', 
+                color=couleurs[i], label=f"C={C}")
+    
+    plt.xlabel("λ (taux d'arrivée des requêtes)")
+    plt.ylabel("Taux de perte")
+    plt.title("Évolution du taux de perte en fonction de λ")
+    plt.grid(True)
+    plt.legend()
+
+def plot_temps_little(lambdas, resultats_little):
+    """Plot le temps moyen calculé avec la loi de Little"""
+    plt.figure(figsize=(10, 6))
+    couleurs = ['blue', 'green', 'red', 'orange']
+    
+    for i, C in enumerate(resultats_little.keys()):
+        temps_little = [np.mean(w) for w in resultats_little[C]]
+
+        ic_95 = [1.96 * np.std(w) / np.sqrt(len(w)) if len(w) > 1 else 0 
+                 for w in resultats_little[C]]
+        
+        plt.errorbar(lambdas, temps_little, yerr=ic_95, fmt='-', 
+                    color=couleurs[i], label=f"C={C}", capsize=5)
+    
+    plt.xlabel("λ (taux d'arrivée des requêtes)")
+    plt.ylabel("Temps moyen (Loi de Little)")
+    plt.title("Évolution du temps moyen (Little) en fonction de λ")
+    plt.grid(True)
+    plt.legend()
+
+if __name__ == "__main__":
+    lambdas = np.arange(0.5, 2.1, 0.05)
+    nb_groupes_list = [1, 2, 3, 6]
+    
+    resultats = {C: [] for C in nb_groupes_list}
+    taux_pertes = {C: [] for C in nb_groupes_list}
+    resultats_little = {C: [] for C in nb_groupes_list}
+    
+    for C in nb_groupes_list:
         for lb in lambdas:
-            tr, tp = simulation(lb, C, 1000)
-            temps_reponse.append(tr)
-            taux_pertes.append(tp)
-            print(f"C={C}, λ={lb:.1f}, TR={tr:.2f}, TP={tp:.2%}")
-        
-        ax1.plot(lambdas, temps_reponse, '-', color=couleurs[i], label=f"C={C}")
-        ax2.plot(lambdas, taux_pertes, '-', color=couleurs[i], label=f"C={C}")
+            temps_reponses = []
+            temps_little = []
+            tp_total = 0
+            n_sims = 10
+            
+            for _ in range(n_sims):
+                tr, tp, W_little = simulation(lb, C, 3000)
+                temps_reponses.append(tr)
+                temps_little.append(W_little)
+                tp_total += tp
+            
+            resultats[C].append(temps_reponses)
+            resultats_little[C].append(temps_little)
+            taux_pertes[C].append(tp_total / n_sims)
+            print(f"C={C}, λ={lb:.1f}, TR={np.mean(temps_reponses):.2f}, W_little={np.mean(temps_little):.2f}")
     
-    # temps reponse
-    ax1.set_xlabel("λ (taux d'arrivée des requêtes)")
-    ax1.set_ylabel("Temps de réponse moyen (s)")
-    ax1.set_title("Évolution du temps de réponse moyen en fonction de λ")
-    ax1.grid(True)
-    ax1.legend()
-    
-    #taux perte
-    ax2.set_xlabel("λ (taux d'arrivée des requêtes)")
-    ax2.set_ylabel("Taux de perte")
-    ax2.set_title("Évolution du taux de perte en fonction de λ")
-    ax2.grid(True)
-    ax2.legend()
-    
-    plt.tight_layout()
+    plot_temps_reponse(lambdas, resultats)
+    plot_taux_perte(lambdas, taux_pertes)
+    plot_temps_little(lambdas, resultats_little)
     plt.show()
