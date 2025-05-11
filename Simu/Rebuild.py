@@ -169,16 +169,18 @@ def plot_temps_reponse(lambdas, resultats):
     plt.legend()
 
 def plot_taux_perte(lambdas, taux_pertes):
-    """Plot le taux de perte"""
+    """Plot le taux de perte en pourcentage"""
     plt.figure(figsize=(10, 6))
     couleurs = ['blue', 'green', 'red', 'orange']
     
     for i, C in enumerate(taux_pertes.keys()):
-        plt.plot(lambdas, taux_pertes[C], '-', 
+        # Convertir en pourcentage
+        taux_pourcent = [tp * 100 for tp in taux_pertes[C]]
+        plt.plot(lambdas, taux_pourcent, '-', 
                 color=couleurs[i], label=f"C={C}")
     
     plt.xlabel("λ (taux d'arrivée des requêtes)")
-    plt.ylabel("Taux de perte")
+    plt.ylabel("Taux de perte (%)")
     plt.title("Évolution du taux de perte en fonction de λ")
     plt.grid(True)
     plt.legend()
@@ -203,32 +205,40 @@ def plot_temps_little(lambdas, resultats_little):
     plt.grid(True)
     plt.legend()
 
-if __name__ == "__main__":
-    lambdas = np.arange(0.5, 2.1, 0.05)
-    nb_groupes_list = [1, 2, 3, 6]
+if __name__ == "__main__": 
+    lambdas = np.arange(1.9, 2.2, 0.01)
+    nb_groupes_list = [2]
+    n_sims = 3  # Nombre de simulations par point
     
     resultats = {C: [] for C in nb_groupes_list}
     taux_pertes = {C: [] for C in nb_groupes_list}
     resultats_little = {C: [] for C in nb_groupes_list}
     
     for C in nb_groupes_list:
+        print(f"Configuration C={C}")
         for lb in lambdas:
             temps_reponses = []
             temps_little = []
-            tp_total = 0
-            n_sims = 10
+            taux_perte = 0
             
-            for _ in range(n_sims):
+            # Faire n_sims simulations pour cette valeur de lambda
+            for sim in range(n_sims):
                 tr, tp, W_little = simulation(lb, C, 3000)
                 temps_reponses.append(tr)
                 temps_little.append(W_little)
-                tp_total += tp
+                taux_perte += tp/n_sims  # Moyenne du taux de perte
             
+            # Stocker les résultats pour les plots
             resultats[C].append(temps_reponses)
             resultats_little[C].append(temps_little)
-            taux_pertes[C].append(tp_total / n_sims)
-            print(f"C={C}, λ={lb:.1f}, TR={np.mean(temps_reponses):.2f}, W_little={np.mean(temps_little):.2f}")
+            taux_pertes[C].append(taux_perte)
+            
+            # Afficher les moyennes
+            tr_moy = np.mean(temps_reponses)
+            w_moy = np.mean(temps_little)
+            print(f"λ={lb:.2f}, TR={tr_moy:.2f}, TP={taux_perte:.2%}, W_little={w_moy:.2f}")
     
+    # Création des plots
     plot_temps_reponse(lambdas, resultats)
     plot_taux_perte(lambdas, taux_pertes)
     plot_temps_little(lambdas, resultats_little)
