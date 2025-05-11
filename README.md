@@ -84,7 +84,7 @@ Ce sont les paramètres utilisées lors de l'appel de la fonction principale sim
 
 # Utilisation
 
-    python Simu/Rebuild.py
+    python Simu/Main.py
 
 Les résultats de la simulation sont automatiquement générés et affichés sous forme de graphiques, permettant de comparer les différentes configurations et déterminer la valeur optimale de C pour chaque λ.
 
