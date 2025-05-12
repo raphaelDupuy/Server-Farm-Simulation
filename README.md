@@ -77,13 +77,13 @@ Ce sont les paramètres utilisées lors de l'appel de la fonction principale sim
 
 - lambda_client : un des taux d'arrivée lambda, obtenus avec :
 
-        np.arange(0.1, 2.1, 0.1)
+        np.arange(valeur de début, valeur de fin, pas)
 
 - nb_groupes : les différentes valeurs de groupe sur lesquelles on fera la simulation :
 
         1, 2, 3 et 6
 
-- duree_max : une durée maximale pour arreter le programme (la même pour toute une simulation, pour avoir des résultats cohérents)
+- duree_max : une durée maximale pour arreter le programme (une durée plus grande augmente la précision des moyennes faites par la simulation)
 
 # Utilisation
 
